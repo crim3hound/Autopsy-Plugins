@@ -64,7 +64,7 @@ from org.sleuthkit.autopsy.ingest import IngestModule
 from org.sleuthkit.autopsy.ingest.IngestModule import IngestModuleException
 from org.sleuthkit.autopsy.ingest import DataSourceIngestModule
 from org.sleuthkit.autopsy.ingest import IngestModuleFactoryAdapter
-from org.sleuthkit.autopsy.ingest import IngestModuleIngestJobSettings
+from org.sleuthkit.autopsy.ingest import GenericIngestModuleJobSettings
 from org.sleuthkit.autopsy.ingest import IngestModuleIngestJobSettingsPanel
 from org.sleuthkit.autopsy.ingest import IngestMessage
 from org.sleuthkit.autopsy.ingest import IngestServices
@@ -96,15 +96,15 @@ class Windows_InternalsIngestModuleFactory(IngestModuleFactoryAdapter):
         return "1.0"
     
     def getDefaultIngestJobSettings(self):
-        return Windows_InternalsWithUISettings()
+        return GenericIngestModuleJobSettings()
 
     def hasIngestJobSettingsPanel(self):
         return True
 
     # TODO: Update class names to ones that you create below
     def getIngestJobSettingsPanel(self, settings):
-        if not isinstance(settings, Windows_InternalsWithUISettings):
-            raise IllegalArgumentException("Expected settings argument to be instanceof SampleIngestModuleSettings")
+        if not isinstance(settings, GenericIngestModuleJobSettings):
+            raise IllegalArgumentException("Expected settings argument to be instanceof GenericIngestModuleJobSettings")
         self.settings = settings
         return Windows_InternalsWithUISettingsPanel(self.settings)
 
@@ -134,59 +134,113 @@ class Windows_InternalsIngestModule(DataSourceIngestModule):
     def startUp(self, context):
         self.context = context
 
-        if self.local_settings.getRecentlyused_Flag():
-            self.log(Level.INFO, "Recently Used ==> " + str(self.local_settings.getRecentlyused_Flag()))
-            self.path_to_Recentlyused_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), "show_ccm_recentlyusedapps.exe")
-            if not os.path.exists(self.path_to_Recentlyused_file):
-               raise IngestModuleException("Recentlyused Executable does not exist")
+        if self.local_settings.getSetting('Recentlyused_Flag') == 'true':
+            if PlatformUtil.isWindowsOS():
+                self.log(Level.INFO, "Recently Used ==> " + str(self.local_settings.getSetting('Recentlyused_Flag')))
+                self.path_to_Recentlyused_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), "show_ccm_recentlyusedapps.exe")
+                if not os.path.exists(self.path_to_Recentlyused_file):
+                   raise IngestModuleException("Recentlyused Executable does not exist for Windows")
+            elif PlatformUtil.getOSName() == 'Linux':
+                self.log(Level.INFO, "Recently Used ==> " + str(self.local_settings.getSetting('Recentlyused_Flag')))
+                self.path_to_Recentlyused_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), "show_CCM_RecentlyUsedApps")
+                if not os.path.exists(self.path_to_Recentlyused_file):
+                   raise IngestModuleException("Recentlyused Executable does not exist for Linux")
 
-        if self.local_settings.getFilehistory_Flag():
-            self.log(Level.INFO, "File Hsitory ==> " + str(self.local_settings.getFilehistory_Flag()))
-            self.path_to_Filehistory_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), "Export_FileHistory.exe")
-            if not os.path.exists(self.path_to_Filehistory_file):
-               raise IngestModuleException("Export_Filehistory Executable does not exist")
+        if self.local_settings.getSetting('Filehistory_Flag') == 'true':
+            if PlatformUtil.isWindowsOS():
+                self.log(Level.INFO, "File Hsitory ==> " + str(self.local_settings.getSetting('Filehistory_Flag')))
+                self.path_to_Filehistory_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), "Export_FileHistory.exe")
+                if not os.path.exists(self.path_to_Filehistory_file):
+                   raise IngestModuleException("Export_Filehistory Executable does not exist for Windows")
+            elif PlatformUtil.getOSName() == 'Linux':
+                self.log(Level.INFO, "File Hsitory ==> " + str(self.local_settings.getSetting('Filehistory_Flag')))
+                self.path_to_Filehistory_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), "Export_FileHistory")
+                if not os.path.exists(self.path_to_Filehistory_file):
+                   raise IngestModuleException("Export_Filehistory Executable does not exist for Liniux")
 
-        if self.local_settings.getJumplist_Flag():
-            self.log(Level.INFO, "Jumplist ==> " + str(self.local_settings.getJumplist_Flag()))
-            self.path_to_Jumplist_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), "export_jl_ad.exe")
-            if not os.path.exists(self.path_to_Jumplist_file):
-               raise IngestModuleException("Jumplist Executable does not exist")
+        if self.local_settings.getSetting('Jumplist_Flag') == 'true':
+            if PlatformUtil.isWindowsOS():
+                self.log(Level.INFO, "Jumplist ==> " + str(self.local_settings.getSetting('Jumplist_Flag')))
+                self.path_to_Jumplist_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), "export_jl_ad.exe")
+                if not os.path.exists(self.path_to_Jumplist_file):
+                   raise IngestModuleException("Jumplist Executable does not exist for Windows")
+            elif PlatformUtil.getOSName() == 'Linux':
+                self.log(Level.INFO, "Jumplist ==> " + str(self.local_settings.getSetting('Jumplist_Flag')))
+                self.path_to_Jumplist_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), "Export_JL_Ad")
+                if not os.path.exists(self.path_to_Jumplist_file):
+                   raise IngestModuleException("Jumplist Executable does not exist fro Linux")
 
-        if self.local_settings.getPrefetch_Flag():
-            self.log(Level.INFO, "Prefetch ==> " + str(self.local_settings.getPrefetch_Flag()))
-            self.path_to_Prefetch_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), "prefetch_parser_autopsy.exe")
-            if not os.path.exists(self.path_to_Prefetch_file):
-               raise IngestModuleException("Prefetch Executable does not exist")
+        if self.local_settings.getSetting('Prefetch_Flag') == 'true':
+            if PlatformUtil.isWindowsOS():
+                self.log(Level.INFO, "Prefetch ==> " + str(self.local_settings.getSetting('Prefetch_Flag')))
+                self.path_to_Prefetch_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), "parse_prefetch.exe")
+                if not os.path.exists(self.path_to_Prefetch_file):
+                   raise IngestModuleException("Prefetch Executable does not exist for Windows")
+            elif PlatformUtil.getOSName() == 'Linux':
+                self.log(Level.INFO, "Prefetch ==> " + str(self.local_settings.getSetting('Prefetch_Flag')))
+                self.path_to_Prefetch_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), "parse_prefetch")
+                if not os.path.exists(self.path_to_Prefetch_file):
+                   raise IngestModuleException("Prefetch Executable does not exist for Linux")
 
-        if self.local_settings.getSAM_Flag():
-            self.log(Level.INFO, "SAM ==> " + str(self.local_settings.getSAM_Flag()))
-            self.path_to_SAM_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), "samparse.exe")
-            if not os.path.exists(self.path_to_SAM_file):
-               raise IngestModuleException("SAM Executable does not exist")
+        if self.local_settings.getSetting('SAM_Flag') == 'true':
+            if PlatformUtil.isWindowsOS():
+                self.log(Level.INFO, "SAM ==> " + str(self.local_settings.getSetting('SAM_Flag')))
+                self.path_to_SAM_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), "samparse.exe")
+                if not os.path.exists(self.path_to_SAM_file):
+                   raise IngestModuleException("SAM Executable does not exist for Windows")
+            elif PlatformUtil.getOSName() == 'Linux':
+                self.log(Level.INFO, "SAM ==> " + str(self.local_settings.getSetting('SAM_Flag')))
+                self.path_to_SAM_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), "Samparse")
+                if not os.path.exists(self.path_to_SAM_file):
+                   raise IngestModuleException("SAM Executable does not exist for Linux")
 
-        if self.local_settings.getShellbags_Flag():
-            self.log(Level.INFO, "shellbags ==> " + str(self.local_settings.getShellbags_Flag()))
-            self.path_to_Shellbags_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), "shellbags.exe")
-            if not os.path.exists(self.path_to_Shellbags_file):
-               raise IngestModuleException("Shellbags Executable does not exist")
+        if self.local_settings.getSetting('Shellbags_Flag') == 'true':
+            if PlatformUtil.isWindowsOS():
+                self.log(Level.INFO, "shellbags ==> " + str(self.local_settings.getSetting('Shellbags_Flag')))
+                self.path_to_Shellbags_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), "shellbags.exe")
+                if not os.path.exists(self.path_to_Shellbags_file):
+                   raise IngestModuleException("Shellbags Executable does not exist for Windows")
+            elif PlatformUtil.getOSName() == 'Linux':
+                self.log(Level.INFO, "shellbags ==> " + str(self.local_settings.getSetting('Shellbags_Flag')))
+                self.path_to_Shellbags_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), "shellbags")
+                if not os.path.exists(self.path_to_Shellbags_file):
+                   raise IngestModuleException("Shellbags Executable does not exist For Linux")
 
-        if self.local_settings.getShimcache_Flag():
-            self.log(Level.INFO, "Shimcache ==> " + str(self.local_settings.getShimcache_Flag()))
-            self.path_to_Shimcache_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), "shimcache_parser.exe")
-            if not os.path.exists(self.path_to_Shimcache_file):
-               raise IngestModuleException("Shimcache Executable does not exist")
+        if self.local_settings.getSetting('Shimcache_Flag') == 'true':
+            if PlatformUtil.isWindowsOS():
+                self.log(Level.INFO, "Shimcache ==> " + str(self.local_settings.getSetting('Shimcache_Flag')))
+                self.path_to_Shimcache_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), "shimcache_parser.exe")
+                if not os.path.exists(self.path_to_Shimcache_file):
+                   raise IngestModuleException("Shimcache Executable does not exist For Windows")
+            elif PlatformUtil.getOSName() == 'Linux':
+                self.log(Level.INFO, "Shimcache ==> " + str(self.local_settings.getSetting('Shimcache_Flag')))
+                self.path_to_Shimcache_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), "Shimcache_parser")
+                if not os.path.exists(self.path_to_Shimcache_file):
+                   raise IngestModuleException("Shimcache Executable does not exist for Linux")
 
-        if self.local_settings.getUsnj_Flag():
-            self.log(Level.INFO, "USN ==> " + str(self.local_settings.getUsnj_Flag()))
-            self.path_to_Usnj_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), "parseusn.exe")
-            if not os.path.exists(self.path_to_Usnj_file):
-               raise IngestModuleException("Usnj Executable does not exist")
+        if self.local_settings.getSetting('Usnj_Flag') == 'true':
+            if PlatformUtil.isWindowsOS():
+                self.log(Level.INFO, "USN ==> " + str(self.local_settings.getSetting('Usnj_Flag')))
+                self.path_to_Usnj_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), "parseusn.exe")
+                if not os.path.exists(self.path_to_Usnj_file):
+                   raise IngestModuleException("Usnj Executable does not exist for Windows")
+            elif PlatformUtil.getOSName() == 'Linux':
+                self.log(Level.INFO, "USN ==> " + str(self.local_settings.getSetting('Usnj_Flag')))
+                self.path_to_Usnj_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), "parseusn")
+                if not os.path.exists(self.path_to_Usnj_file):
+                   raise IngestModuleException("Usnj Executable does not exist for linux")
 
-        if self.local_settings.getWebcache_Flag():
-            self.log(Level.INFO, "Webcache ==> " + str(self.local_settings.getWebcache_Flag()))
-            self.path_to_Webcache_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), "Export_Webcache.exe")
-            if not os.path.exists(self.path_to_Webcache_file):
-               raise IngestModuleException("Webcache Executable does not exist")
+        if self.local_settings.getSetting('Webcache_Flag') == 'true':
+            if PlatformUtil.isWindowsOS():
+                self.log(Level.INFO, "Webcache ==> " + str(self.local_settings.getSetting('Webcache_Flag')))
+                self.path_to_Webcache_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), "Export_Webcache.exe")
+                if not os.path.exists(self.path_to_Webcache_file):
+                   raise IngestModuleException("Webcache Executable does not exist for Windows")
+            elif PlatformUtil.getOSName() == 'Linux':
+                self.log(Level.INFO, "Webcache ==> " + str(self.local_settings.getSetting('Webcache_Flag')))
+                self.path_to_Webcache_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), "Export_Webcache")
+                if not os.path.exists(self.path_to_Webcache_file):
+                   raise IngestModuleException("Webcache Executable does not exist for Linux")
 
         # Throw an IngestModule.IngestModuleException exception if there was a problem setting up
         # raise IngestModuleException(IngestModule(), "Oh No!")
@@ -204,21 +258,21 @@ class Windows_InternalsIngestModule(DataSourceIngestModule):
         # we don't know how much work there is yet
         progressBar.switchToIndeterminate()
         
-        if self.local_settings.getRecentlyused_Flag():
+        if self.local_settings.getSetting('Recentlyused_Flag') == 'true':
             progressBar.progress("Processing Recently Used Apps")	
             self.process_Recentlyused(dataSource, progressBar)
             message = IngestMessage.createMessage(IngestMessage.MessageType.DATA,
                 "Windows_Internals", " Recentlyused Has Been Analyzed " )
             IngestServices.getInstance().postMessage(message)
 
-        if self.local_settings.getFilehistory_Flag():
+        if self.local_settings.getSetting('Filehistory_Flag') == 'true':
             progressBar.progress("Processing File History")	
             self.process_Filehistory(dataSource, progressBar)
             message = IngestMessage.createMessage(IngestMessage.MessageType.DATA,
                 "Windows_Internals", " File History Has Been Analyzed " )
             IngestServices.getInstance().postMessage(message)
 
-        if self.local_settings.getJumplist_Flag():
+        if self.local_settings.getSetting('Jumplist_Flag') == 'true':
             progressBar.progress("Processing Jumplists")	
             self.log(Level.INFO, "Starting to process Jumplist")
             self.process_Jumplist(dataSource, progressBar)
@@ -226,42 +280,42 @@ class Windows_InternalsIngestModule(DataSourceIngestModule):
                 "Windows_Internals", " Jumplist Has Been Analyzed " )
             IngestServices.getInstance().postMessage(message)
 
-        if self.local_settings.getPrefetch_Flag():
+        if self.local_settings.getSetting('Prefetch_Flag') == 'true':
             progressBar.progress("Processing Prefetch")	
             self.process_Prefetch(dataSource, progressBar)
             message = IngestMessage.createMessage(IngestMessage.MessageType.DATA,
                 "Windows_Internals", " Prefetch Has Been Analyzed " )
             IngestServices.getInstance().postMessage(message)
 
-        if self.local_settings.getSAM_Flag():
+        if self.local_settings.getSetting('SAM_Flag') == 'true':
             progressBar.progress("Processing SAM")	
             self.process_SAM(dataSource, progressBar)
             message = IngestMessage.createMessage(IngestMessage.MessageType.DATA,
                 "Windows_Internals", " SAM Has Been Analyzed " )
             IngestServices.getInstance().postMessage(message)
 
-        if self.local_settings.getShellbags_Flag():
+        if self.local_settings.getSetting('Shellbags_Flag') == 'true':
             progressBar.progress("Processing Shellbags")	
             self.process_Shellbags(dataSource, progressBar)
             message = IngestMessage.createMessage(IngestMessage.MessageType.DATA,
                 "Windows_Internals", " Shellbags Have Been Analyzed " )
             IngestServices.getInstance().postMessage(message)
 
-        if self.local_settings.getShimcache_Flag():
+        if self.local_settings.getSetting('Shimcache_Flag') == 'true':
             progressBar.progress("Processing Shimcache")	
             self.process_Shimcache(dataSource, progressBar)
             message = IngestMessage.createMessage(IngestMessage.MessageType.DATA,
                 "Windows_Internals", " Shimcache Has Been Analyzed " )
             IngestServices.getInstance().postMessage(message)
 
-        if self.local_settings.getUsnj_Flag():
+        if self.local_settings.getSetting('Usnj_Flag') == 'true':
             progressBar.progress("Processing UsnJ")	
             self.process_Usnj(dataSource, progressBar)        
             message = IngestMessage.createMessage(IngestMessage.MessageType.DATA,
                 "Windows_Internals", " Usnj Has Been Analyzed " )
             IngestServices.getInstance().postMessage(message)
 
-        if self.local_settings.getWebcache_Flag():
+        if self.local_settings.getSetting('Webcache_Flag') == 'true':
             progressBar.progress("Processing Webcache")	
             self.process_Webcache(dataSource, progressBar)
             message = IngestMessage.createMessage(IngestMessage.MessageType.DATA,
@@ -293,10 +347,10 @@ class Windows_InternalsIngestModule(DataSourceIngestModule):
         fileCount = 0;
 
 		# Create Event Log directory in temp directory, if it exists then continue on processing		
-        Temp_Dir = Case.getCurrentCase().getTempDirectory()
+        Temp_Dir = os.path.join(Case.getCurrentCase().getTempDirectory(), "Recently_Used")
         self.log(Level.INFO, "create Directory " + Temp_Dir)
         try:
-		    os.mkdir(Temp_Dir + "\Recently_Used")
+		    os.mkdir(Temp_Dir)
         except:
 		    self.log(Level.INFO, "Recently Used Directory already exists " + Temp_Dir)
 			
@@ -314,17 +368,17 @@ class Windows_InternalsIngestModule(DataSourceIngestModule):
                 self.log(Level.INFO, "Parent or Root Directory File not writing")
             else:
                 # Save the DB locally in the temp folder. use file id as name to reduce collisions
-                lclDbPath = os.path.join(Temp_Dir + "\Recently_Used", file.getName())
+                lclDbPath = os.path.join(Temp_Dir, file.getName())
                 ContentUtils.writeToFile(file, File(lclDbPath))
 
         self.log(Level.INFO, "Running prog ==> " + self.path_to_Recentlyused_file + " win7 " + Temp_Dir + "\Recently_Used " + " " + \
-                                     Temp_Dir + "\Recently_Used\\recentlyUsedApps.db3")
-        pipe = Popen([self.path_to_Recentlyused_file, "win7", Temp_Dir + "\Recently_Used", Temp_Dir + "\Recently_Used\\recentlyUsedApps.db3"], stdout=PIPE, stderr=PIPE)
+                                     Temp_Dir + "\\recentlyUsedApps.db3")
+        pipe = Popen([self.path_to_Recentlyused_file, "win7", Temp_Dir, os.path.join(Temp_Dir,"recentlyUsedApps.db3")], stdout=PIPE, stderr=PIPE)
         
         out_text = pipe.communicate()[0]
         self.log(Level.INFO, "Output from run is ==> " + out_text) 
 
-        lclDbPath = os.path.join(Case.getCurrentCase().getTempDirectory() + "\Recently_Used", "recentlyUsedApps.db3")        
+        lclDbPath = os.path.join(Temp_Dir, "recentlyUsedApps.db3")        
         if ("Exiting" in out_text):
             message = IngestMessage.createMessage(IngestMessage.MessageType.DATA,
                 "CCM Recently Used Apps", " Error in CCM Recently Used Apps module " )
@@ -415,7 +469,7 @@ class Windows_InternalsIngestModule(DataSourceIngestModule):
                if (file.getName() == "OBJECTS.DATA"):
 
                     # Open the DB using JDBC
-                    lclDbPath = os.path.join(Case.getCurrentCase().getTempDirectory() + "\Recently_Used", "recentlyUsedApps.db3")
+                    lclDbPath = os.path.join(Temp_Dir, "recentlyUsedApps.db3")
                     self.log(Level.INFO, "Path the recentlyUsedApps.db3 database file created ==> " + lclDbPath)
                     try: 
                        Class.forName("org.sqlite.JDBC").newInstance()
@@ -524,11 +578,11 @@ class Windows_InternalsIngestModule(DataSourceIngestModule):
 		#Clean up EventLog directory and files
         for file in files:
            try:
-              os.remove(Temp_Dir + "\\Recently_Used" + "\\" + file.getName())
+              os.remove(os.path.join(Temp_Dir), file.getName())
            except:
-              self.log(Level.INFO, "removal of Recently Used files failed " + Temp_Dir + "\\" + file.getName())
+              self.log(Level.INFO, "removal of Recently Used files failed " + os.path.join(Temp_Dir, file.getName()))
         try:
-           shutil.rmtree(Temp_Dir + "\Recently_Used")		
+           shutil.rmtree(Temp_Dir)		
         except:
 		   self.log(Level.INFO, "removal of recently used directory failed " + Temp_Dir)
 
@@ -645,7 +699,7 @@ class Windows_InternalsIngestModule(DataSourceIngestModule):
         fileCount = 0;
 		
         # Create file history directory in temp directory, if it exists then continue on processing		
-        Temp_Dir = Case.getCurrentCase().getTempDirectory() + "\File_History"
+        Temp_Dir = os.path.join(Case.getCurrentCase().getTempDirectory(), "File_History")
         self.log(Level.INFO, "create Directory " + Temp_Dir)
         try:
 		    os.mkdir(Temp_Dir)
@@ -910,10 +964,10 @@ class Windows_InternalsIngestModule(DataSourceIngestModule):
         fileCount = 0;
 		
         # Create Event Log directory in temp directory, if it exists then continue on processing		
-        Temp_Dir = Case.getCurrentCase().getTempDirectory()
-        self.log(Level.INFO, "create Directory " + Temp_Dir + "\JL_AD")
+        Temp_Dir = os.path.join(Case.getCurrentCase().getTempDirectory(), "JL_SD")
+        self.log(Level.INFO, "create Directory " + Temp_Dir)
         try:
-		    os.mkdir(Temp_Dir + "\JL_AD")
+		    os.mkdir(Temp_Dir)
         except:
 		    self.log(Level.INFO, "JL_AD Directory already exists " + Temp_Dir)
 			
@@ -928,24 +982,18 @@ class Windows_InternalsIngestModule(DataSourceIngestModule):
             fileCount += 1
 
             # Save the DB locally in the temp folder. use file id as name to reduce collisions
-            lclDbPath = os.path.join(Temp_Dir + "\JL_AD", file.getName())
+            lclDbPath = os.path.join(Temp_Dir, file.getName())
             ContentUtils.writeToFile(file, File(lclDbPath))
                         
-
-        # Example has only a Windows EXE, so bail if we aren't on Windows
-        if not PlatformUtil.isWindowsOS(): 
-            self.log(Level.INFO, "Ignoring data source.  Not running on Windows")
-            return IngestModule.ProcessResult.OK
-
         # Run the EXE, saving output to a sqlite database
-        self.log(Level.INFO, "Running program on data source parm 1 ==> " + Temp_Dir + "\JL_AD" + "  Parm 2 ==> " + Temp_Dir + "\JL_AD.db3")
-        pipe = Popen([self.path_to_Jumplist_file, Temp_Dir + "\JL_AD", Temp_Dir + "\JL_AD.db3", self.path_to_app_id_db], stdout=PIPE, stderr=PIPE)
+        self.log(Level.INFO, "Running program on data source parm 1 ==> " + Temp_Dir + "  Parm 2 ==> " + os.path.join(Temp_Dir, "JL_AD.db3"))
+        pipe = Popen([self.path_to_Jumplist_file, Temp_Dir, os.path.join(Temp_Dir, "JL_AD.db3"), self.path_to_app_id_db], stdout=PIPE, stderr=PIPE)
         
         out_text = pipe.communicate()[0]
         self.log(Level.INFO, "Output from run is ==> " + out_text)                
         
         # Set the database to be read to the one created by the Event_EVTX program
-        lclDbPath = os.path.join(Case.getCurrentCase().getTempDirectory(), "JL_AD.db3")
+        lclDbPath = os.path.join(Temp_Dir, "JL_AD.db3")
         self.log(Level.INFO, "Path to the JL_AD database file created ==> " + lclDbPath)
                         
         # Open the DB using JDBC
@@ -956,8 +1004,8 @@ class Windows_InternalsIngestModule(DataSourceIngestModule):
             self.log(Level.INFO, "Could not open database file (not SQLite) " + file.getName() + " (" + e.getMessage() + ")")
             return IngestModule.ProcessResult.OK
             
-        fileManager = Case.getCurrentCase().getServices().getFileManager()
-        files = fileManager.findFiles(dataSource, "%.automaticDestinations-ms")
+#        fileManager = Case.getCurrentCase().getServices().getFileManager()
+#        files = fileManager.findFiles(dataSource, "%.automaticDestinations-ms")
             
         for file in files:
             file_name = os.path.splitext(file.getName())[0]
@@ -1052,7 +1100,7 @@ class Windows_InternalsIngestModule(DataSourceIngestModule):
             # except:
 			    # self.log(Level.INFO, "removal of JL_AD file failed " + Temp_Dir + "\\" + file.getName())
         try:
-             shutil.rmtree(Temp_Dir + "\\JL_AD")		
+             shutil.rmtree(Temp_Dir)		
         except:
 		     self.log(Level.INFO, "removal of JL_AD directory failed " + Temp_Dir)
     
@@ -1144,6 +1192,10 @@ class Windows_InternalsIngestModule(DataSourceIngestModule):
         attID_ex7 = skCase.getAttributeType("TSK_PF_EXEC_DTTM_7")
         attID_ex8 = skCase.getAttributeType("TSK_PF_EXEC_DTTM_8")
 
+        # Used to crossref ADS prefetch files
+        prefetchFileName = {}
+
+        
         # we don't know how much work there is yet
         progressBar.switchToIndeterminate()
         
@@ -1157,7 +1209,7 @@ class Windows_InternalsIngestModule(DataSourceIngestModule):
         fileCount = 0;
 		
         # Create prefetch directory in temp directory, if it exists then continue on processing		
-        Temp_Dir = Case.getCurrentCase().getTempDirectory() + "\Prefetch_Files"
+        Temp_Dir = os.path.join(Case.getCurrentCase().getTempDirectory(), "Prefetch_Files")
         self.log(Level.INFO, "create Directory " + Temp_Dir)
         try:
 		    os.mkdir(Temp_Dir)
@@ -1175,24 +1227,24 @@ class Windows_InternalsIngestModule(DataSourceIngestModule):
             fileCount += 1
 
             # Save the DB locally in the temp folder. use file id as name to reduce collisions
+            fileName = file.getName()
+            if (":" in fileName):
+                fileName = fileName.replace(":", "-")
+                prefetchFileName[fileName] = file
+            else:
+                prefetchFileName[fileName] = file
             lclDbPath = os.path.join(Temp_Dir, file.getName())
             ContentUtils.writeToFile(file, File(lclDbPath))
                         
-
-        # Example has only a Windows EXE, so bail if we aren't on Windows
-        if not PlatformUtil.isWindowsOS(): 
-            self.log(Level.INFO, "Ignoring data source.  Not running on Windows")
-            return IngestModule.ProcessResult.OK
-
         # Run the EXE, saving output to a sqlite database
         self.log(Level.INFO, "Running program on data source parm 1 ==> " + Temp_Dir + "  Parm 2 ==> " + Case.getCurrentCase().getTempDirectory())
-        pipe = Popen([self.path_to_Prefetch_file, Temp_Dir, Case.getCurrentCase().getTempDirectory()], stdout=PIPE, stderr=PIPE)
+        pipe = Popen([self.path_to_Prefetch_file, Temp_Dir, os.path.join(Temp_Dir, "Autopsy_PF_DB.db3")], stdout=PIPE, stderr=PIPE)
         
         out_text = pipe.communicate()[0]
         self.log(Level.INFO, "Output from run is ==> " + out_text)                
 			
         # Set the database to be read to the once created by the prefetch parser program
-        lclDbPath = os.path.join(Case.getCurrentCase().getTempDirectory(), "Autopsy_PF_DB.db3")
+        lclDbPath = os.path.join(Temp_Dir, "Autopsy_PF_DB.db3")
         self.log(Level.INFO, "Path the prefetch database file created ==> " + lclDbPath)
                         
         # Open the DB using JDBC
@@ -1238,37 +1290,37 @@ class Windows_InternalsIngestModule(DataSourceIngestModule):
             except SQLException as e:
                 self.log(Level.INFO, "Error getting values from contacts table (" + e.getMessage() + ")")
 
-            fileManager = Case.getCurrentCase().getServices().getFileManager()
-            files = fileManager.findFiles(dataSource, Prefetch_File_Name)                
-            
-            for file in files:
-                # Make artifact for TSK_PREFETCH,  this can happen when custom attributes are fully supported
-                art = file.newArtifact(artID_pf)
+            file = prefetchFileName[Prefetch_File_Name]
+            # Make artifact for TSK_PREFETCH,  this can happen when custom attributes are fully supported
+            art = file.newArtifact(artID_pf)
 
-                # Add the attributes to the artifact.
-                art.addAttributes(((BlackboardAttribute(attID_pf_fn, Windows_InternalsIngestModuleFactory.moduleName, Prefetch_File_Name)), \
-                                  (BlackboardAttribute(attID_pf_an, Windows_InternalsIngestModuleFactory.moduleName, Actual_File_Name)), \
-                                  (BlackboardAttribute(attID_nr, Windows_InternalsIngestModuleFactory.moduleName, Number_Of_Runs)), \
-                                  (BlackboardAttribute(attID_ex1, Windows_InternalsIngestModuleFactory.moduleName, Time_1)), \
-                                  (BlackboardAttribute(attID_ex2, Windows_InternalsIngestModuleFactory.moduleName, Time_2)), \
-                                  (BlackboardAttribute(attID_ex3, Windows_InternalsIngestModuleFactory.moduleName, Time_3)), \
-                                  (BlackboardAttribute(attID_ex4, Windows_InternalsIngestModuleFactory.moduleName, Time_4)), \
-                                  (BlackboardAttribute(attID_ex5, Windows_InternalsIngestModuleFactory.moduleName, Time_5)), \
-                                  (BlackboardAttribute(attID_ex6, Windows_InternalsIngestModuleFactory.moduleName, Time_6)), \
-                                  (BlackboardAttribute(attID_ex7, Windows_InternalsIngestModuleFactory.moduleName, Time_7)), \
-                                  (BlackboardAttribute(attID_ex8, Windows_InternalsIngestModuleFactory.moduleName, Time_8))))
-                
-                try:
-                    #index the artifact for keyword search
-                    blackboard.indexArtifact(art)
-                except:
-                    self.log(Level.SEVERE, "Error indexing artifact " + art.getDisplayName())
+            # Add the attributes to the artifact.
+            art.addAttributes(((BlackboardAttribute(attID_pf_fn, Windows_InternalsIngestModuleFactory.moduleName, file.getName())), \
+                              (BlackboardAttribute(attID_pf_an, Windows_InternalsIngestModuleFactory.moduleName, Actual_File_Name)), \
+                              (BlackboardAttribute(attID_nr, Windows_InternalsIngestModuleFactory.moduleName, Number_Of_Runs)), \
+                              (BlackboardAttribute(attID_ex1, Windows_InternalsIngestModuleFactory.moduleName, Time_1)), \
+                              (BlackboardAttribute(attID_ex2, Windows_InternalsIngestModuleFactory.moduleName, Time_2)), \
+                              (BlackboardAttribute(attID_ex3, Windows_InternalsIngestModuleFactory.moduleName, Time_3)), \
+                              (BlackboardAttribute(attID_ex4, Windows_InternalsIngestModuleFactory.moduleName, Time_4)), \
+                              (BlackboardAttribute(attID_ex5, Windows_InternalsIngestModuleFactory.moduleName, Time_5)), \
+                              (BlackboardAttribute(attID_ex6, Windows_InternalsIngestModuleFactory.moduleName, Time_6)), \
+                              (BlackboardAttribute(attID_ex7, Windows_InternalsIngestModuleFactory.moduleName, Time_7)), \
+                              (BlackboardAttribute(attID_ex8, Windows_InternalsIngestModuleFactory.moduleName, Time_8))))
+            
+            try:
+                #index the artifact for keyword search
+                blackboard.indexArtifact(art)
+            except:
+                self.log(Level.SEVERE, "Error indexing artifact " + art.getDisplayName())
 			
-            IngestServices.getInstance().fireModuleDataEvent(ModuleDataEvent(Windows_InternalsIngestModuleFactory.moduleName, artID_pf_evt, None))
+        IngestServices.getInstance().fireModuleDataEvent(ModuleDataEvent(Windows_InternalsIngestModuleFactory.moduleName, artID_pf_evt, None))
         # Clean up
-        stmt.close()
-        dbConn.close()
-        os.remove(lclDbPath)
+        try:
+            stmt.close()
+            dbConn.close()
+            os.remove(lclDbPath)
+        except:
+            self.log(Level.INFO, "could not remove the prefetch database " + lclDbPath)
 			
 		#Clean up prefetch directory and files
         try:
@@ -1294,10 +1346,10 @@ class Windows_InternalsIngestModule(DataSourceIngestModule):
         fileCount = 0;
 
 		# Create Event Log directory in temp directory, if it exists then continue on processing		
-        Temp_Dir = Case.getCurrentCase().getTempDirectory()
+        Temp_Dir = os.path.join(Case.getCurrentCase().getTempDirectory(), "SAM")
         self.log(Level.INFO, "create Directory " + Temp_Dir)
         try:
-		    os.mkdir(Temp_Dir + "\SAM")
+		    os.mkdir(Temp_Dir)
         except:
 		    self.log(Level.INFO, "SAM Directory already exists " + Temp_Dir)
 			
@@ -1312,24 +1364,18 @@ class Windows_InternalsIngestModule(DataSourceIngestModule):
             fileCount += 1
 
             # Save the DB locally in the temp folder. use file id as name to reduce collisions
-            lclDbPath = os.path.join(Temp_Dir + "\SAM", file.getName())
+            lclDbPath = os.path.join(Temp_Dir, file.getName())
             ContentUtils.writeToFile(file, File(lclDbPath))
                         
-
-        # Example has only a Windows EXE, so bail if we aren't on Windows
-        if not PlatformUtil.isWindowsOS(): 
-            self.log(Level.INFO, "Ignoring data source.  Not running on Windows")
-            return IngestModule.ProcessResult.OK
-
         # Run the EXE, saving output to a sqlite database
         self.log(Level.INFO, "Running program on data source parm 1 ==> " + Temp_Dir + "  Parm 2 ==> " + Temp_Dir + "\\SAM.db3")
-        pipe = Popen([self.path_to_SAM_file, Temp_Dir + "\\SAM\\SAM", Temp_Dir + "\\SAM.db3"], stdout=PIPE, stderr=PIPE)
+        pipe = Popen([self.path_to_SAM_file, os.path.join(Temp_Dir, "SAM"), os.path.join(Temp_Dir, "SAM.db3")], stdout=PIPE, stderr=PIPE)
         out_text = pipe.communicate()[0]
         self.log(Level.INFO, "Output from run is ==> " + out_text)               
                
         for file in files:	
            # Open the DB using JDBC
-           lclDbPath = os.path.join(Case.getCurrentCase().getTempDirectory(), "SAM.db3")
+           lclDbPath = os.path.join(Temp_Dir, "SAM.db3")
            self.log(Level.INFO, "Path the SAM database file created ==> " + lclDbPath)
            try: 
                Class.forName("org.sqlite.JDBC").newInstance()
@@ -1432,10 +1478,10 @@ class Windows_InternalsIngestModule(DataSourceIngestModule):
         fileCount = 0;
 
 		# Create Event Log directory in temp directory, if it exists then continue on processing		
-        Temp_Dir = Case.getCurrentCase().getTempDirectory()
+        Temp_Dir = os.path.join(Case.getCurrentCase().getTempDirectory(), "Shimcache")
         self.log(Level.INFO, "create Directory " + Temp_Dir)
         try:
-		    os.mkdir(Temp_Dir + "/Shimcache")
+		    os.mkdir(Temp_Dir)
         except:
 		    self.log(Level.INFO, "Shimcache Directory already exists " + Temp_Dir)
 			
@@ -1448,24 +1494,18 @@ class Windows_InternalsIngestModule(DataSourceIngestModule):
            fileCount += 1
 
            # Save the DB locally in the temp folder. use file id as name to reduce collisions
-           lclDbPath = os.path.join(Temp_Dir + "\\Shimcache\\", file.getName())
+           lclDbPath = os.path.join(Temp_Dir, file.getName())
            ContentUtils.writeToFile(file, File(lclDbPath))
            self.log(Level.INFO, "Saved File ==> " + lclDbPath)
 
-           if not PlatformUtil.isWindowsOS(): 
-               self.log(Level.INFO, "Ignoring data source.  Not running on Windows")
-               return IngestModule.ProcessResult.OK
-
            # Run the EXE, saving output to a sqlite database
-           self.log(Level.INFO, "Running program ==> " + self.path_to_Shimcache_file + " " + Temp_Dir + "\\Shimcache\\" + \
-                    file.getName() + " " + Temp_Dir + "\\Shimcache_db.db3")
-           pipe = Popen([self.path_to_Shimcache_file, Temp_Dir + "\\Shimcache\\" + file.getName(), Temp_Dir + \
-                         "\\Shimcache_db.db3"], stdout=PIPE, stderr=PIPE)
+           self.log(Level.INFO, "Running program ==> " + self.path_to_Shimcache_file + " " + os.path.join(Temp_Dir, file.getName() + " " + os.path.join(Temp_Dir, "Shimcache_db.db3")))
+           pipe = Popen([self.path_to_Shimcache_file, os.path.join(Temp_Dir, file.getName()), os.path.join(Temp_Dir, "Shimcache_db.db3")], stdout=PIPE, stderr=PIPE)
            out_text = pipe.communicate()[0]
            self.log(Level.INFO, "Output from run is ==> " + out_text)               
                
            # Open the DB using JDBC
-           lclDbPath = os.path.join(Case.getCurrentCase().getTempDirectory(), "Shimcache_db.db3")
+           lclDbPath = os.path.join(Temp_Dir, "Shimcache_db.db3")
            self.log(Level.INFO, "Path the system database file created ==> " + lclDbPath)
            
            try: 
@@ -1547,7 +1587,7 @@ class Windows_InternalsIngestModule(DataSourceIngestModule):
            os.remove(lclDbPath)
 
         try:
-             shutil.rmtree(Temp_Dir + "\\Shimcache")		
+             shutil.rmtree(Temp_Dir)		
         except:
 		     self.log(Level.INFO, "removal of directory tree failed " + Temp_Dir + "\\Shimcache")
     
@@ -1569,10 +1609,10 @@ class Windows_InternalsIngestModule(DataSourceIngestModule):
         fileCount = 0;
 
 		# Create Event Log directory in temp directory, if it exists then continue on processing		
-        Temp_Dir = Case.getCurrentCase().getTempDirectory()
+        Temp_Dir = os.path.join(Case.getCurrentCase().getTempDirectory(), "usnj")
         self.log(Level.INFO, "create Directory " + Temp_Dir)
         try:
-		    os.mkdir(Temp_Dir + "/usnj")
+		    os.mkdir(Temp_Dir)
         except:
 		    self.log(Level.INFO, "Usnj Directory already exists " + Temp_Dir)
 			
@@ -1585,23 +1625,18 @@ class Windows_InternalsIngestModule(DataSourceIngestModule):
            fileCount += 1
 
            # Save the DB locally in the temp folder. use file id as name to reduce collisions
-           lclDbPath = os.path.join(Temp_Dir + "\\usnj\\", "usnj.txt")
+           lclDbPath = os.path.join(Temp_Dir, "usnj.txt")
            ContentUtils.writeToFile(file, File(lclDbPath))
            self.log(Level.INFO, "Saved File ==> " + lclDbPath)
 
-           if not PlatformUtil.isWindowsOS(): 
-               self.log(Level.INFO, "Ignoring data source.  Not running on Windows")
-               return IngestModule.ProcessResult.OK
-
            # Run the EXE, saving output to a sqlite database
-           self.log(Level.INFO, "Running program ==> " + self.path_to_Usnj_file + " " + Temp_Dir + "\\usnj\\usnj.txt" + \
-                    " " + Temp_Dir + "\\usnj.db3")
-           pipe = Popen([self.path_to_Usnj_file, Temp_Dir + "\\usnj\\usnj.txt", Temp_Dir + "\\usnj.db3"], stdout=PIPE, stderr=PIPE)
+           self.log(Level.INFO, "Running program ==> " + self.path_to_Usnj_file + " " + os.path.join(Temp_Dir, "usnj.txt") + " " + os.path.join(Temp_Dir, "usnj.db3"))
+           pipe = Popen([self.path_to_Usnj_file, os.path.join(Temp_Dir, "usnj.txt"), os.path.join(Temp_Dir, "usnj.db3")], stdout=PIPE, stderr=PIPE)
            out_text = pipe.communicate()[0]
            self.log(Level.INFO, "Output from run is ==> " + out_text)               
                
            # Open the DB using JDBC
-           lclDbPath = os.path.join(Case.getCurrentCase().getTempDirectory(), "usnj.db3")
+           lclDbPath = os.path.join(Temp_Dir, "usnj.db3")
            self.log(Level.INFO, "Path the system database file created ==> " + lclDbPath)
            
            try: 
@@ -1710,10 +1745,10 @@ class Windows_InternalsIngestModule(DataSourceIngestModule):
         fileCount = 0;
 
 		# Create Event Log directory in temp directory, if it exists then continue on processing		
-        Temp_Dir = Case.getCurrentCase().getTempDirectory()
+        Temp_Dir = os.path.join(Case.getCurrentCase().getTempDirectory(), "Webcache")
         self.log(Level.INFO, "create Directory " + Temp_Dir)
         try:
-		    os.mkdir(Temp_Dir + "\Webcache")
+		    os.mkdir(Temp_Dir)
         except:
 		    self.log(Level.INFO, "Webcache Directory already exists " + Temp_Dir)
 			
@@ -1728,27 +1763,21 @@ class Windows_InternalsIngestModule(DataSourceIngestModule):
             fileCount += 1
 
             # Save the DB locally in the temp folder. use file id as name to reduce collisions
-            lclDbPath = os.path.join(Temp_Dir + "\Webcache", file.getName() + "-" + str(file.getId()))
+            lclDbPath = os.path.join(Temp_Dir, file.getName() + "-" + str(file.getId()))
             DbPath = os.path.join(Temp_Dir, file.getName() + "-" + str(file.getId()) + ".db3")
             self.log(Level.INFO, file.getName() + ' ==> ' + str(file.getId()) + ' ==> ' + file.getUniquePath()) 
             ContentUtils.writeToFile(file, File(lclDbPath))
                         
             # Run the EXE, saving output to a sqlite database
-            self.log(Level.INFO, "Running program on data source parm 1 ==> " + Temp_Dir + "  Parm 2 ==> " + Temp_Dir + "\WebcacheV01.db3")
+            self.log(Level.INFO, "Running program on data source parm 1 ==> " + lclDbPath + "  Parm 2 ==> " + DbPath)
             #subprocess.Popen([self.path_to_Webcache_file, lclDbPath, DbPath]).communicate()[0]   
             pipe = Popen([self.path_to_Webcache_file, lclDbPath, DbPath], stdout=PIPE, stderr=PIPE)
             out_text = pipe.communicate()[0]
             self.log(Level.INFO, "Output from run is ==> " + out_text)               
 
-        # Example has only a Windows EXE, so bail if we aren't on Windows
-        if not PlatformUtil.isWindowsOS(): 
-            self.log(Level.INFO, "Ignoring data source.  Not running on Windows")
-            return IngestModule.ProcessResult.OK
-
-               
         for file in files:	
            # Open the DB using JDBC
-           lclDbPath = os.path.join(Case.getCurrentCase().getTempDirectory(), file.getName() + "-" + str(file.getId()) + ".db3")
+           lclDbPath = os.path.join(Temp_Dir, file.getName() + "-" + str(file.getId()) + ".db3")
            self.log(Level.INFO, "Path the Webcache database file created ==> " + lclDbPath)
 
            try: 
@@ -1842,11 +1871,11 @@ class Windows_InternalsIngestModule(DataSourceIngestModule):
 		#Clean up EventLog directory and files
         for file in files:
             try:
-                os.remove(Temp_Dir + "\\" + file.getName() + "-" + str(file.getId()) + ".db3")
+                os.remove(os.path.join(Temp_Dir, file.getName() + "-" + str(file.getId()) + ".db3"))
             except:
-			    self.log(Level.INFO, "removal of Webcache file failed " + Temp_Dir + "\\" + file.getName() + "-" + str(file.getId()))
+			    self.log(Level.INFO, "removal of Webcache file failed " + os.path.join(Temp_Dir, file.getName() + "-" + str(file.getId())))
         try:
-             shutil.rmtree(Temp_Dir + "\\Webcache")		
+             shutil.rmtree(Temp_Dir)		
         except:
 		     self.log(Level.INFO, "removal of Webcache directory failed " + Temp_Dir)
 
@@ -1868,10 +1897,10 @@ class Windows_InternalsIngestModule(DataSourceIngestModule):
         fileCount = 0;
 
 		# Create Event Log directory in temp directory, if it exists then continue on processing		
-        Temp_Dir = Case.getCurrentCase().getTempDirectory()
+        Temp_Dir = os.path.join(Case.getCurrentCase().getTempDirectory(), "shellbag")
         self.log(Level.INFO, "create Directory " + Temp_Dir)
         try:
-		    os.mkdir(Temp_Dir + "/shellbag")
+		    os.mkdir(Temp_Dir)
         except:
 		    self.log(Level.INFO, "Shellbag Directory already exists " + Temp_Dir)
 			
@@ -1884,24 +1913,19 @@ class Windows_InternalsIngestModule(DataSourceIngestModule):
            fileCount += 1
 
            # Save the DB locally in the temp folder. use file id as name to reduce collisions
-           lclDbPath = os.path.join(Temp_Dir + "\\shellbag\\", file.getName())
+           lclDbPath = os.path.join(Temp_Dir, file.getName())
            ContentUtils.writeToFile(file, File(lclDbPath))
            self.log(Level.INFO, "Saved File ==> " + lclDbPath)
 
-           if not PlatformUtil.isWindowsOS(): 
-               self.log(Level.INFO, "Ignoring data source.  Not running on Windows")
-               return IngestModule.ProcessResult.OK
-
            # Run the EXE, saving output to a sqlite database
-           self.log(Level.INFO, "Running program ==> " + self.path_to_Shellbags_file + " " + Temp_Dir + "\\shellbag\\" + \
-                    file.getName() + " " + Temp_Dir + "\\shellbag_db.db3 " + file.getUniquePath())
-           pipe = Popen([self.path_to_Shellbags_file, Temp_Dir + "\\shellbag\\" + file.getName(), Temp_Dir + \
-                         "\\Shellbag_db.db3", file.getUniquePath()], stdout=PIPE, stderr=PIPE)
+           self.log(Level.INFO, "Running program ==> " + self.path_to_Shellbags_file + " " + os.path.join(Temp_Dir, file.getName()) + " " + \
+                    os.path.join(Temp_Dir, "shellbag_db.db3") + " " + file.getUniquePath())
+           pipe = Popen([self.path_to_Shellbags_file, os.path.join(Temp_Dir, file.getName()), os.path.join(Temp_Dir, "Shellbag_db.db3", file.getUniquePath())], stdout=PIPE, stderr=PIPE)
            out_text = pipe.communicate()[0]
            self.log(Level.INFO, "Output from run is ==> " + out_text)               
                
            # Open the DB using JDBC
-           lclDbPath = os.path.join(Case.getCurrentCase().getTempDirectory(), "shellbag_db.db3")
+           lclDbPath = os.path.join(Temp_Dir, "shellbag_db.db3")
            self.log(Level.INFO, "Path the system database file created ==> " + lclDbPath) 
            
            try: 
@@ -1988,90 +2012,16 @@ class Windows_InternalsIngestModule(DataSourceIngestModule):
            #os.remove(lclDbPath)
            for file in files:
               try:
-			     os.remove(Temp_Dir + "\\Shellbag\\" + file.getName())
+			     os.remove(os.path.join(Temp_Dir, file.getName()))
               except:
 			     self.log(Level.INFO, "removal of shellbag file failed " + Temp_Dir + "\\" + file.getName())
         try:
-            os.remove(Temp_Dir + "\\Shellbag_db.db3")
-            shutil.rmtree(Temp_Dir + "\\Shellbag")		
+            os.remove(os.path.join(Temp_Dir, "Shellbag_db.db3"))
+            shutil.rmtree(Temp_Dir)		
         except:
 		    self.log(Level.INFO, "removal of Shellbag directory failed " + Temp_Dir)
     
     
-# Stores the settings that can be changed for each ingest job
-# All fields in here must be serializable.  It will be written to disk.
-class Windows_InternalsWithUISettings(IngestModuleIngestJobSettings):
-    serialVersionUID = 1L
-
-    def __init__(self):
-        self.Recentlyused_Flag = False
-        self.Jumplist_Flag = False
-        self.Prefetch_Flag = False
-        self.SAM_Flag = False
-        self.Shellbags_Flag = False
-        self.Shimcache_Flag = False
-        self.Usnj_Flag = False
-        self.Webcache_Flag = False
-        self.Filehistory_Flag = False
-
-    def getVersionNumber(self):
-        return serialVersionUID
-
-    # Define getters and settings for data you want to store from UI
-    def getRecentlyused_Flag(self):
-        return self.Recentlyused_Flag
-
-    def setRecentlyused_Flag(self, flag):
-        self.Recentlyused_Flag = flag
-
-    def getJumplist_Flag(self):
-        return self.Jumplist_Flag
-
-    def setJumplist_Flag(self, flag):
-        self.Jumplist_Flag = flag
-
-    def getPrefetch_Flag(self):
-        return self.Prefetch_Flag
-
-    def setPrefetch_Flag(self, flag):
-        self.Prefetch_Flag = flag
-
-    def getSAM_Flag(self):
-        return self.SAM_Flag
-
-    def setSAM_Flag(self, flag):
-        self.SAM_Flag = flag
-
-    def getShellbags_Flag(self):
-        return self.Shellbags_Flag
-
-    def setShellbags_Flag(self, flag):
-        self.Shellbags_Flag = flag
-
-    def getShimcache_Flag(self):
-        return self.Shimcache_Flag
-
-    def setShimcache_Flag(self, flag):
-        self.Shimcache_Flag = flag
-
-    def getUsnj_Flag(self):
-        return self.Usnj_Flag
-
-    def setUsnj_Flag(self, flag):
-        self.Usnj_Flag = flag
-
-    def getWebcache_Flag(self):
-        return self.Webcache_Flag
-
-    def setWebcache_Flag(self, flag):
-        self.Webcache_Flag = flag
-
-    def getFilehistory_Flag(self):
-        return self.Filehistory_Flag
-
-    def setFilehistory_Flag(self, flag):
-        self.Filehistory_Flag = flag
-        
 # UI that is shown to user for each ingest job so they can configure the job.
 class Windows_InternalsWithUISettingsPanel(IngestModuleIngestJobSettingsPanel):
     # Note, we can't use a self.settings instance variable.
@@ -2093,49 +2043,49 @@ class Windows_InternalsWithUISettingsPanel(IngestModuleIngestJobSettingsPanel):
     def checkBoxEvent(self, event):
 
         if self.Recentlyused_CB.isSelected():
-            self.local_settings.setRecentlyused_Flag(True)
+            self.local_settings.setSetting('Recentlyused_Flag', 'true')
         else:
-            self.local_settings.setRecentlyused_Flag(False)
+            self.local_settings.setSetting('Recentlyused_Flag', 'false')
 
         if self.Filehistory_CB.isSelected():
-            self.local_settings.setFilehistory_Flag(True)
+            self.local_settings.setSetting('Filehistory_Flag', 'true')
         else:
-            self.local_settings.setFilehistory_Flag(False)
+            self.local_settings.setSetting('Filehistory_Flag', 'false')
 
         if self.Jumplist_CB.isSelected():
-            self.local_settings.setJumplist_Flag(True)
+            self.local_settings.setSetting('Jumplist_Flag', 'true')
         else:
-            self.local_settings.setJumplist_Flag(False)
+            self.local_settings.setSetting('Jumplist_Flag', 'false')
 
         if self.Prefetch_CB.isSelected():
-            self.local_settings.setPrefetch_Flag(True)
+            self.local_settings.setSetting('Prefetch_Flag', 'true')
         else:
-            self.local_settings.setPrefetch_Flag(False)
+            self.local_settings.setSetting('Prefetch_Flag', 'false')
 
         if self.SAM_CB.isSelected():
-            self.local_settings.setSAM_Flag(True)
+            self.local_settings.setSetting('SAM_Flag', 'true')
         else:
-            self.local_settings.setSAM_Flag(False)
+            self.local_settings.setSetting('SAM_Flag', 'false')
 
         if self.Shellbags_CB.isSelected():
-            self.local_settings.setShellbags_Flag(True)
+            self.local_settings.setSetting('Shellbags_Flag', 'true')
         else:
-            self.local_settings.setShellbags_Flag(False)
+            self.local_settings.setSetting('Shellbags_Flag', 'false')
 
         if self.Shimcache_CB.isSelected():
-            self.local_settings.setShimcache_Flag(True)
+            self.local_settings.setSetting('Shimcache_Flag', 'true')
         else:
-            self.local_settings.setShimcache_Flag(False)
+            self.local_settings.setSetting('Shimcache_Flag', 'false')
 
         if self.Usnj_CB.isSelected():
-            self.local_settings.setUsnj_Flag(True)
+            self.local_settings.setSetting('Usnj_Flag', 'true')
         else:
-            self.local_settings.setUsnj_Flag(False)
+            self.local_settings.setSetting('Usnj_Flag', 'false')
 
         if self.Webcache_CB.isSelected():
-            self.local_settings.setWebcache_Flag(True)
+            self.local_settings.setSetting('Webcache_Flag', 'true')
         else:
-            self.local_settings.setWebcache_Flag(False)
+            self.local_settings.setSetting('Webcache_Flag', 'false')
 
     def initComponents(self):
         self.panel0 = JPanel()
@@ -2255,15 +2205,15 @@ class Windows_InternalsWithUISettingsPanel(IngestModuleIngestJobSettingsPanel):
         self.add(self.panel0)
 
     def customizeComponents(self):
-        self.Jumplist_CB.setSelected(self.local_settings.getJumplist_Flag())
-        self.Filehistory_CB.setSelected(self.local_settings.getFilehistory_Flag())
-        self.Prefetch_CB.setSelected(self.local_settings.getPrefetch_Flag())
-        self.SAM_CB.setSelected(self.local_settings.getSAM_Flag())
-        self.Shellbags_CB.setSelected(self.local_settings.getShellbags_Flag())
-        self.Shimcache_CB.setSelected(self.local_settings.getShimcache_Flag())
-        self.Usnj_CB.setSelected(self.local_settings.getUsnj_Flag())
-        self.Webcache_CB.setSelected(self.local_settings.getWebcache_Flag())
-        self.Recentlyused_CB.setSelected(self.local_settings.getRecentlyused_Flag())
+        self.Jumplist_CB.setSelected(self.local_settings.getSetting('Jumplist_Flag') == 'true')
+        self.Filehistory_CB.setSelected(self.local_settings.getSetting('Filehistory_Flag') == 'true')
+        self.Prefetch_CB.setSelected(self.local_settings.getSetting('Prefetch_Flag') == 'true')
+        self.SAM_CB.setSelected(self.local_settings.getSetting('SAM_Flag') == 'true')
+        self.Shellbags_CB.setSelected(self.local_settings.getSetting('Shellbags_Flag') == 'true')
+        self.Shimcache_CB.setSelected(self.local_settings.getSetting('Shimcache_Flag') == 'true')
+        self.Usnj_CB.setSelected(self.local_settings.getSetting('Usnj_Flag') == 'true')
+        self.Webcache_CB.setSelected(self.local_settings.getSetting('Webcache_Flag') == 'true')
+        self.Recentlyused_CB.setSelected(self.local_settings.getSetting('Recentlyused_Flag') == 'true')
 
     # Return the settings used
     def getSettings(self):

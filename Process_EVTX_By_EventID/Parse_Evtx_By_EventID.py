@@ -36,6 +36,8 @@
 
 
 #   Version 1.0 - Initial version - July 2017
+#   Version 1.1 - Add Linux support
+#   Version 1.2 - Fix option panels
 
 import jarray
 import inspect
@@ -71,7 +73,7 @@ from org.sleuthkit.autopsy.ingest import IngestModule
 from org.sleuthkit.autopsy.ingest.IngestModule import IngestModuleException
 from org.sleuthkit.autopsy.ingest import DataSourceIngestModule
 from org.sleuthkit.autopsy.ingest import IngestModuleFactoryAdapter
-from org.sleuthkit.autopsy.ingest import IngestModuleIngestJobSettings
+from org.sleuthkit.autopsy.ingest import GenericIngestModuleJobSettings
 from org.sleuthkit.autopsy.ingest import IngestModuleIngestJobSettingsPanel
 from org.sleuthkit.autopsy.ingest import IngestMessage
 from org.sleuthkit.autopsy.ingest import IngestServices
@@ -103,15 +105,15 @@ class ParseEvtxByEventIDIngestModuleFactory(IngestModuleFactoryAdapter):
         return "1.0"
     
     def getDefaultIngestJobSettings(self):
-        return Process_EVTX1WithUISettings()
+        return GenericIngestModuleJobSettings()
 
     def hasIngestJobSettingsPanel(self):
         return True
 
     # TODO: Update class names to ones that you create below
     def getIngestJobSettingsPanel(self, settings):
-        if not isinstance(settings, Process_EVTX1WithUISettings):
-            raise IllegalArgumentException("Expected settings argument to be instanceof SampleIngestModuleSettings")
+        if not isinstance(settings, GenericIngestModuleJobSettings):
+            raise IllegalArgumentException("Expected settings argument to be instanceof GenericIngestModuleJobSettings")
         self.settings = settings
         return Process_EVTX1WithUISettingsPanel(self.settings)
 
@@ -144,22 +146,27 @@ class ParseEvtxByEventIDIngestModule(DataSourceIngestModule):
         # Get path to EXE based on where this script is run from.
         # Assumes EXE is in same folder as script
         # Verify it is there before any ingest starts
-        self.path_to_exe = os.path.join(os.path.dirname(os.path.abspath(__file__)), "export_EVTX.exe")
-        if not os.path.exists(self.path_to_exe):
-            raise IngestModuleException("EXE was not found in module folder")
+        if PlatformUtil.isWindowsOS():
+            self.path_to_exe = os.path.join(os.path.dirname(os.path.abspath(__file__)), "export_EVTX.exe")
+            if not os.path.exists(self.path_to_exe):
+                raise IngestModuleException("EXE was not found in module folder")
+        else:
+            self.path_to_exe = os.path.join(os.path.dirname(os.path.abspath(__file__)), "Export_EVTX")
+            if not os.path.exists(self.path_to_exe):
+                raise IngestModuleException("Linux executable was not found in module folder")
         
-        if self.local_settings.getFlag():
+        if self.local_settings.getSetting('All') == 'true':
             self.List_Of_Events.append('ALL')
             #self.logger.logp(Level.INFO, Process_EVTX1WithUI.__name__, "startUp", "All Events CHecked")
         else:
-            if self.local_settings.getFlag4():
+            if self.local_settings.getSetting('Other') == 'true':
                 #self.List_Of_Events.append('Other')
-                Event_List = self.local_settings.getArea().split()
+                Event_List = self.local_settings.getSetting('Eventids').split()
                 self.log(Level.INFO, "Event List ==> " + str(Event_List))
                 for evt in Event_List:
                    self.List_Of_Events.append(str(evt))
                 #self.Event_Id_List = "','".join(self.List_Of_Events)
-                self.Event_Id_List = self.local_settings.getArea().replace(',','\',\'')
+                self.Event_Id_List = self.local_settings.getSetting('Eventids').replace(',','\',\'')
                 self.Event_Id_List.replace(',','\',\'')
              
         
@@ -305,10 +312,11 @@ class ParseEvtxByEventIDIngestModule(DataSourceIngestModule):
             # Create Event Log directory in temp directory, if it exists then continue on processing		
             Temp_Dir = Case.getCurrentCase().getTempDirectory()
             self.log(Level.INFO, "create Directory " + Temp_Dir)
+            temp_dir = os.path.join(Temp_Dir, "EventLogs")
             try:
-                os.mkdir(Temp_Dir + "\EventLogs")
+                os.mkdir(temp_dir)
             except:
-                self.log(Level.INFO, "Event Log Directory already exists " + Temp_Dir)
+                self.log(Level.INFO, "Event Log Directory already exists " + temp_dir)
                 
             # Write out each Event Log file to the temp directory
             for file in files:
@@ -321,18 +329,12 @@ class ParseEvtxByEventIDIngestModule(DataSourceIngestModule):
                 fileCount += 1
 
                 # Save the DB locally in the temp folder. use file id as name to reduce collisions
-                lclDbPath = os.path.join(Temp_Dir + "\EventLogs", file.getName())
+                lclDbPath = os.path.join(temp_dir, file.getName())
                 ContentUtils.writeToFile(file, File(lclDbPath))
                             
-
-            # Example has only a Windows EXE, so bail if we aren't on Windows
-            if not PlatformUtil.isWindowsOS(): 
-                self.log(Level.INFO, "Ignoring data source.  Not running on Windows")
-                return IngestModule.ProcessResult.OK
-
             # Run the EXE, saving output to a sqlite database
-            self.log(Level.INFO, "Running program on data source parm 1 ==> " + Temp_Dir + "  Parm 2 ==> " + Temp_Dir + "\EventLogs.db3")
-            subprocess.Popen([self.path_to_exe, Temp_Dir + "\EventLogs", Temp_Dir + "\EventLogs.db3"]).communicate()[0]   
+            self.log(Level.INFO, "Running program on data source " + self.path_to_exe + " parm 1 ==> " + temp_dir + "  Parm 2 ==> " + os.path.join(Temp_Dir,"\EventLogs.db3"))
+            subprocess.Popen([self.path_to_exe, temp_dir, os.path.join(Temp_Dir, "EventLogs.db3")]).communicate()[0]   
                 
             # Set the database to be read to the one created by the Event_EVTX program
             lclDbPath = os.path.join(Case.getCurrentCase().getTempDirectory(), "EventLogs.db3")
@@ -464,11 +466,11 @@ class ParseEvtxByEventIDIngestModule(DataSourceIngestModule):
             #Clean up EventLog directory and files
             for file in files:
                 try:
-                    os.remove(Temp_Dir + "\\" + file.getName())
+                    os.remove(os.path.join(temp_dir,file.getName()))
                 except:
                     self.log(Level.INFO, "removal of Event Log file failed " + Temp_Dir + "\\" + file.getName())
             try:
-                 os.rmdir(Temp_Dir)		
+                 os.rmdir(temp_dir)		
             except:
                  self.log(Level.INFO, "removal of Event Logs directory failed " + Temp_Dir)
      
@@ -487,41 +489,6 @@ class ParseEvtxByEventIDIngestModule(DataSourceIngestModule):
             
             return IngestModule.ProcessResult.OK
 		
-# Stores the settings that can be changed for each ingest job
-# All fields in here must be serializable.  It will be written to disk.
-# TODO: Rename this class
-class Process_EVTX1WithUISettings(IngestModuleIngestJobSettings):
-    serialVersionUID = 1L
-
-    def __init__(self):
-        self.flag = False
-        self.flag4 = False
-        self.area = ""
-
-    def getVersionNumber(self):
-        return serialVersionUID
-
-    # TODO: Define getters and settings for data you want to store from UI
-    def getFlag(self):
-        return self.flag
-
-    def setFlag(self, flag):
-        self.flag = flag
-
-    def getFlag4(self):
-        return self.flag4
-
-    def setFlag4(self, flag4):
-        self.flag4 = flag4
-
-    def getArea(self):
-        return self.area
-
-    def setArea(self, area):
-        self.area = area
-
-# UI that is shown to user for each ingest job so they can configure the job.
-# TODO: Rename this
 class Process_EVTX1WithUISettingsPanel(IngestModuleIngestJobSettingsPanel):
     # Note, we can't use a self.settings instance variable.
     # Rather, self.local_settings is used.
@@ -543,19 +510,19 @@ class Process_EVTX1WithUISettingsPanel(IngestModuleIngestJobSettingsPanel):
     # TODO: Update this for your UI
     def checkBoxEvent(self, event):
         if self.checkbox.isSelected():
-            self.local_settings.setFlag(True)
+            self.local_settings.setSetting('All', 'true')
         else:
-            self.local_settings.setFlag(False)
+            self.local_settings.setSetting('All', 'false')
         if self.checkbox4.isSelected():
-            self.local_settings.setFlag4(True)
-            self.local_settings.setArea(self.area.getText());
+            self.local_settings.setSetting('Other', 'true')
+            self.local_settings.setSetting('Eventids', self.area.getText());
             # self.local_settings.setFlag(False)
             # self.checkbox.setSelected(self.local_settings.getFlag())
         else:
-            self.local_settings.setFlag4(False)
+            self.local_settings.setSetting('Other', 'false')
             
     def keyPressed(self, event):
-        self.local_settings.setArea(self.area.getText());
+        self.local_settings.setArea('Eventids', self.area.getText())
 
     # TODO: Update this for your UI
     def initComponents(self):
@@ -588,8 +555,9 @@ class Process_EVTX1WithUISettingsPanel(IngestModuleIngestJobSettingsPanel):
 		
     # TODO: Update this for your UI
     def customizeComponents(self):
-        self.checkbox.setSelected(self.local_settings.getFlag())
-        self.checkbox4.setSelected(self.local_settings.getFlag4())
+        self.checkbox.setSelected(self.local_settings.getSetting('All') == 'true')
+        self.checkbox4.setSelected(self.local_settings.getSetting('Other') == 'true')
+        self.area.setText(self.local_settings.getSetting('Eventids'))
 
     # Return the settings used
     def getSettings(self):
